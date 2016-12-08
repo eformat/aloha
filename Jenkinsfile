@@ -29,7 +29,7 @@ if( "${env.BRANCH_NAME}" ) {
 
 // jenkins environment variables
 echo "Build Number is: ${env.BUILD_NUMBER}"
-echo "Branch name is: ${env.BRANCH_NAME}"
+echo "Branch name is: ${GIT_BRANCH}"
 echo "Git URL is: ${GIT_URL}"
 
 // build properties (acts as check - these echo's will fail if properties not bound)
@@ -50,19 +50,19 @@ echo "Project per Test Build is: ${PROJECT_PER_TEST_BUILD}"
 echo "Production Project Name is: ${PROD_PROJECT_NAME}"
 
 // set oc cli cmd to use kubeconfig per build else we conflict with single user
-oc = "KUBECONFIG=~/.kube/config-${APP_NAME}-${env.BRANCH_NAME}-${env.BUILD_NUMBER} oc"
+oc = "KUBECONFIG=~/.kube/config-${APP_NAME}-${GIT_BRANCH}-${env.BUILD_NUMBER} oc"
 
 // project per build
 def devProject = ''
 if ("${PROJECT_PER_DEV_BUILD}"=='true') {
-    devProject = "${APP_NAME}-dev-${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    devProject = "${APP_NAME}-dev-${GIT_BRANCH}-${env.BUILD_NUMBER}"
 } else {
     devProject = "${APP_NAME}-dev"
 }
 
 def testProject = ''
 if ("${PROJECT_PER_TEST_BUILD}"=='true') {
-    testProject = "${APP_NAME}-qa-${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    testProject = "${APP_NAME}-qa-${GIT_BRANCH}-${env.BUILD_NUMBER}"
 } else {
     testProject = "${APP_NAME}-qa"
 }
@@ -70,7 +70,7 @@ if ("${PROJECT_PER_TEST_BUILD}"=='true') {
 stage 'Build project with Maven'
 node {
     echo 'Checking out git repository'
-    git url: "${GIT_URL}/${APP_NAME}", branch: "${env.BRANCH_NAME}"
+    git url: "${GIT_URL}/${APP_NAME}", branch: "${GIT_BRANCH}"
 
     echo 'Building project'
     def mvnHome = tool 'M3'
@@ -175,7 +175,7 @@ node {
         deleteProject("${testProject}", "${CRED_OPENSHIFT_QA}")
     }
 
-    sh "rm ~/.kube/config-${APP_NAME}-${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    sh "rm ~/.kube/config-${APP_NAME}-${GIT_BRANCH}-${env.BUILD_NUMBER}"
 }
 
 // Delete a Project
