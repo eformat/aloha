@@ -23,9 +23,9 @@ properties([
     ]]
 ])
 
-if( "${env.BRANCH_NAME}" != null && "${env.BRANCH_NAME}" != "") {
-    GIT_BRANCH = "${env.BRANCH_NAME}"
-} 
+//if( "${env.BRANCH_NAME}" != null && "${env.BRANCH_NAME}" != "") {
+//    GIT_BRANCH = "${env.BRANCH_NAME}"
+//} 
 
 // jenkins environment variables
 echo "Build Number is: ${env.BUILD_NUMBER}"
