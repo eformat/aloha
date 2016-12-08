@@ -4,7 +4,8 @@
 properties([
     [$class: 'ParametersDefinitionProperty', parameterDefinitions: [
         [$class: 'StringParameterDefinition', name: 'APP_NAME', defaultValue: 'aloha', description: "Application Name - all resources use this name as a lebel"],
-        [$class: 'StringParameterDefinition', name: 'GIT_URL', defaultValue: 'https://github.com/eformat', description: "Git URL (concat with app name for checkout"],
+        [$class: 'StringParameterDefinition', name: 'GIT_URL', defaultValue: 'https://github.com/eformat', description: "Git URL (concat with app name for checkout)"],
+        [$class: 'StringParameterDefinition', name: 'GIT_BRANCH', defaultValue: 'master', description: "Git Branch (from Multibranch plugin if being used)"],
         [$class: 'StringParameterDefinition', name: 'OPENSHIFT_MASTER', defaultValue: 'openshift-cluster.eformat.nz:8443', description: "host:port of OpenShift master API"],
         [$class: 'StringParameterDefinition', name: 'SONARQUBE', defaultValue: 'sonarqube.sonarqube.svc.cluster.local.', description: "OpenShift Sonarqube Service Name (assumes default port 9000)"],
         [$class: 'StringParameterDefinition', name: 'OPENSHIFT_REGISTRY', defaultValue: 'docker-registry.default.svc.cluster.local.', description: "OpenShift Registry Service Name (assumes default port 5000)"],
@@ -21,6 +22,10 @@ properties([
         [$class: 'StringParameterDefinition', name: 'PROD_PROJECT_NAME', defaultValue: 'redhatmsa', description: "Production Project Name (redhatmsa)"]
     ]]
 ])
+
+if(${env.BRANCH_NAME}) {
+    GIT_BRANCH = ${env.BRANCH_NAME}
+} 
 
 // jenkins environment variables
 echo "Build Number is: ${env.BUILD_NUMBER}"
