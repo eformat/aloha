@@ -72,6 +72,8 @@ node('maven') {
     echo 'Checking out git repository'
     git url: "${GIT_URL}/${APP_NAME}", branch: "${GIT_BRANCH}"
  
+    sh "ls -lart"
+
     stage 'Build image and deploy in Dev'
     echo 'Building docker image and deploying to Dev'
     buildProject("${devProject}", "${CRED_OPENSHIFT_DEV}", "${DEV_POD_NUMBER}", "${PROJECT_PER_DEV_BUILD}")
