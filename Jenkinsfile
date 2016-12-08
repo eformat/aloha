@@ -75,37 +75,22 @@ node('maven') {
     echo 'Building project'
     sh "mvn clean package"
     
-    stash excludes: 'target/', includes: '**', name: 'source'
-    stash includes: 'target/', name: 'build'
-}
-
-stage 'Build image and deploy in Dev'
-node('maven') {
+    stage 'Build image and deploy in Dev'
     echo 'Building docker image and deploying to Dev'
-    unstash 'source'
     buildProject("${devProject}", "${CRED_OPENSHIFT_DEV}", "${DEV_POD_NUMBER}", "${PROJECT_PER_DEV_BUILD}")
-}
 
-stage 'Verify deployment in Dev'
-node('maven') {
+    stage 'Verify deployment in Dev'
     verifyDeployment("${devProject}", "${CRED_OPENSHIFT_DEV}", '1')
-}
 
-if ("${SKIP_TESTS}"=='false') {
+    if ("${SKIP_TESTS}"=='false') {
 
-    stage 'Automated tests'
-    parallel 'unitTests': {
-        node {
-            unstash 'source'
+        stage 'Automated tests'
+        parallel 'unitTests': {
             echo 'This stage simulates automated unit tests'
             sh "mvn -B -Dmaven.test.failure.ignore verify"
             //step([$class: 'ArtifactArchiver', artifacts: '**/target/*.jar', fingerprint: true])
             //step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])
-
-        }
-    }, 'sonarAnalysis': {
-        node {
-            //unstash 'source'
+        }, 'sonarAnalysis': {
             //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${CRED_SONARQUBE}",
             //    usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
             //    echo 'run sonar tests'
@@ -114,55 +99,35 @@ if ("${SKIP_TESTS}"=='false') {
             //    sh "${sonarHome}/bin/sonar-scanner -Dsonar.projectKey=${APP_NAME} -Dsonar.projectName=${APP_NAME} -Dsonar.host.url=http://${sonarIP}:9000 -Dsonar.login=admin -Dsonar.password=admin -Dsonar.projectVersion=1.0.0-SNAPSHOT -Dsonar.sources=src/main"
                 //sh "mvn -Dsonar.scm.disabled=True -Dsonar.jdbc.username=$USERNAME -Dsonar.jdbc.password=$PASSWORD sonar:sonar"
             //}
-        }
-    }, 'seleniumTests': {
-        node {
-            unstash 'source'
+        }, 'seleniumTests': {
             echo 'This stage simulates web ui tests'
             sh "mvn -B -Dmaven.test.failure.ignore verify"
             // sh "${mvnHome}/bin/mvn test"
-        }
-    }, 'owaspAnalysis': {
-        node {
-            unstash 'source'
+        }, 'owaspAnalysis': {
             echo 'This stage checks dependencies for vulnerabilities'
-            build job: "${APP_NAME}-dependency-check", wait: true
-        }
-    }, failFast: true
-    
-}
+            //build job: "${APP_NAME}-dependency-check", wait: true
+        }, failFast: true
+    }
 
-stage 'Deploy to QA'
-node('maven') {
+    stage 'Deploy to QA'
     echo 'Deploying to QA'
-    unstash 'build'
     deployProject("${devProject}", "${testProject}", "${CRED_OPENSHIFT_DEV}", "${CRED_OPENSHIFT_QA}", 'promote', "${DEV_POD_NUMBER}", "${PROJECT_PER_TEST_BUILD}")
-}
 
-stage 'Verify deployment in QA'
-node('maven') {
+    stage 'Verify deployment in QA'
     verifyDeployment("${testProject}", "${CRED_OPENSHIFT_QA}", "${QA_POD_NUMBER}")
-}
 
+    stage 'Deploy to production'
+    timeout(time: 2, unit: 'DAYS') {
+        input message: 'OPS Approve to production?', submitter: 'ops'
+    }
 
-stage 'Deploy to production'
-timeout(time: 2, unit: 'DAYS') {
-    input message: 'OPS Approve to production?', submitter: 'ops'
-}
-
-node('maven') {
     echo 'Deploying to production'
-    unstash 'build'
     deployProject("${devProject}", "${PROD_PROJECT_NAME}", "${CRED_OPENSHIFT_DEV}", "${CRED_OPENSHIFT_PROD}", 'prod', "${PROD_POD_NUMBER}", 'true')
-}
 
-stage 'Verify deployment in Production'
-node('maven') {
+    stage 'Verify deployment in Production'
     verifyDeployment("${PROD_PROJECT_NAME}", "${CRED_OPENSHIFT_PROD}", "${PROD_POD_NUMBER}")
-}
 
-stage 'Wait for Delete Development & Test Projects'
-node('maven') {
+    stage 'Wait for Delete Development & Test Projects'
     timeout(time: 7, unit: 'DAYS') {
         input 'Delete Development & Test Projects?'
         echo 'Delete Development & Test Projects'
