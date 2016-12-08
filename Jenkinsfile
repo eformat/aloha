@@ -3,7 +3,7 @@
 // Global Variables
 properties([
     [$class: 'ParametersDefinitionProperty', parameterDefinitions: [
-        [$class: 'StringParameterDefinition', name: 'APP_NAME', defaultValue: 'ola', description: "Application Name - all resources use this name as a lebel"],
+        [$class: 'StringParameterDefinition', name: 'APP_NAME', defaultValue: 'aloha', description: "Application Name - all resources use this name as a lebel"],
         [$class: 'StringParameterDefinition', name: 'GIT_URL', defaultValue: 'https://github.com/eformat', description: "Git URL (concat with app name for checkout"],
         [$class: 'StringParameterDefinition', name: 'OPENSHIFT_MASTER', defaultValue: 'openshift-cluster.eformat.nz:8443', description: "host:port of OpenShift master API"],
         [$class: 'StringParameterDefinition', name: 'SONARQUBE', defaultValue: 'sonarqube.sonarqube.svc.cluster.local.', description: "OpenShift Sonarqube Service Name (assumes default port 9000)"],
