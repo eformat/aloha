@@ -23,8 +23,8 @@ properties([
     ]]
 ])
 
-if(${env.BRANCH_NAME}) {
-    GIT_BRANCH = ${env.BRANCH_NAME}
+if( "${env.BRANCH_NAME}" ) {
+    GIT_BRANCH = "${env.BRANCH_NAME}"
 } 
 
 // jenkins environment variables
