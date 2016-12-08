@@ -68,28 +68,26 @@ if ("${PROJECT_PER_TEST_BUILD}"=='true') {
 }
 
 stage 'Build project with Maven'
-node {
+node('maven') {
     echo 'Checking out git repository'
     git url: "${GIT_URL}/${APP_NAME}", branch: "${GIT_BRANCH}"
 
     echo 'Building project'
-    def mvnHome = tool 'M3'
-    def javaHome = tool 'jdk8'
-    sh "${mvnHome}/bin/mvn clean package"
+    sh "mvn clean package"
     
     stash excludes: 'target/', includes: '**', name: 'source'
     stash includes: 'target/', name: 'build'
 }
 
 stage 'Build image and deploy in Dev'
-node {
+node('maven') {
     echo 'Building docker image and deploying to Dev'
     unstash 'source'
     buildProject("${devProject}", "${CRED_OPENSHIFT_DEV}", "${DEV_POD_NUMBER}", "${PROJECT_PER_DEV_BUILD}")
 }
 
 stage 'Verify deployment in Dev'
-node {
+node('maven') {
     verifyDeployment("${devProject}", "${CRED_OPENSHIFT_DEV}", '1')
 }
 
@@ -100,31 +98,28 @@ if ("${SKIP_TESTS}"=='false') {
         node {
             unstash 'source'
             echo 'This stage simulates automated unit tests'
-            def mvnHome = tool 'M3'
-            sh "${mvnHome}/bin/mvn -B -Dmaven.test.failure.ignore verify"
+            sh "mvn -B -Dmaven.test.failure.ignore verify"
             //step([$class: 'ArtifactArchiver', artifacts: '**/target/*.jar', fingerprint: true])
             //step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])
 
         }
     }, 'sonarAnalysis': {
         node {
-            unstash 'source'
-            withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${CRED_SONARQUBE}",
-                usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
-                echo 'run sonar tests'
-                sonarIP = getIP("${SONARQUBE}")
-                def sonarHome =  tool 'SQ'
-                sh "${sonarHome}/bin/sonar-scanner -Dsonar.projectKey=${APP_NAME} -Dsonar.projectName=${APP_NAME} -Dsonar.host.url=http://${sonarIP}:9000 -Dsonar.login=admin -Dsonar.password=admin -Dsonar.projectVersion=1.0.0-SNAPSHOT -Dsonar.sources=src/main"
-                // def mvnHome = tool 'M3'
-                //sh "${mvnHome}/bin/mvn -Dsonar.scm.disabled=True -Dsonar.jdbc.username=$USERNAME -Dsonar.jdbc.password=$PASSWORD sonar:sonar"
-            }
+            //unstash 'source'
+            //withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${CRED_SONARQUBE}",
+            //    usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+            //    echo 'run sonar tests'
+            //    sonarIP = getIP("${SONARQUBE}")
+            //    def sonarHome =  tool 'SQ'
+            //    sh "${sonarHome}/bin/sonar-scanner -Dsonar.projectKey=${APP_NAME} -Dsonar.projectName=${APP_NAME} -Dsonar.host.url=http://${sonarIP}:9000 -Dsonar.login=admin -Dsonar.password=admin -Dsonar.projectVersion=1.0.0-SNAPSHOT -Dsonar.sources=src/main"
+                //sh "mvn -Dsonar.scm.disabled=True -Dsonar.jdbc.username=$USERNAME -Dsonar.jdbc.password=$PASSWORD sonar:sonar"
+            //}
         }
     }, 'seleniumTests': {
         node {
             unstash 'source'
             echo 'This stage simulates web ui tests'
-            def mvnHome = tool 'M3'
-            sh "${mvnHome}/bin/mvn -B -Dmaven.test.failure.ignore verify"
+            sh "mvn -B -Dmaven.test.failure.ignore verify"
             // sh "${mvnHome}/bin/mvn test"
         }
     }, 'owaspAnalysis': {
@@ -138,14 +133,14 @@ if ("${SKIP_TESTS}"=='false') {
 }
 
 stage 'Deploy to QA'
-node {
+node('maven') {
     echo 'Deploying to QA'
     unstash 'build'
     deployProject("${devProject}", "${testProject}", "${CRED_OPENSHIFT_DEV}", "${CRED_OPENSHIFT_QA}", 'promote', "${DEV_POD_NUMBER}", "${PROJECT_PER_TEST_BUILD}")
 }
 
 stage 'Verify deployment in QA'
-node {
+node('maven') {
     verifyDeployment("${testProject}", "${CRED_OPENSHIFT_QA}", "${QA_POD_NUMBER}")
 }
 
@@ -155,19 +150,19 @@ timeout(time: 2, unit: 'DAYS') {
     input message: 'OPS Approve to production?', submitter: 'ops'
 }
 
-node {
+node('maven') {
     echo 'Deploying to production'
     unstash 'build'
     deployProject("${devProject}", "${PROD_PROJECT_NAME}", "${CRED_OPENSHIFT_DEV}", "${CRED_OPENSHIFT_PROD}", 'prod', "${PROD_POD_NUMBER}", 'true')
 }
 
 stage 'Verify deployment in Production'
-node {
+node('maven') {
     verifyDeployment("${PROD_PROJECT_NAME}", "${CRED_OPENSHIFT_PROD}", "${PROD_POD_NUMBER}")
 }
 
 stage 'Wait for Delete Development & Test Projects'
-node {
+node('maven') {
     timeout(time: 7, unit: 'DAYS') {
         input 'Delete Development & Test Projects?'
         echo 'Delete Development & Test Projects'
@@ -202,7 +197,7 @@ def deployProject(String origProject, String project, String origCredentialsId, 
     withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${credentialsId}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
         sh "${oc} policy add-role-to-user view $env.USERNAME"
     }
-
+        
     // change to upstream project
     projectSet(project, credentialsId)
     // deploy origproject image to upstream project
@@ -253,7 +248,7 @@ def appDeploy(String project, String tag, String replicas, String newProject){
 }
 
 // Get Token for Openshift Plugin authToken
-def getToken(String credentialsId){
+def getToken(String credentialsId) {
     withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: "${credentialsId}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
         sh "${oc} login --insecure-skip-tls-verify=true -u $env.USERNAME -p $env.PASSWORD https://${OPENSHIFT_MASTER}"
         sh "${oc} whoami -t > token"
@@ -261,7 +256,7 @@ def getToken(String credentialsId){
         token = token.trim()
         sh 'rm token'
         return token
-    }
+    }    
 }
 
 // Verify Openshift deploy
